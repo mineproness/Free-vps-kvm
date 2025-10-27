@@ -53,8 +53,8 @@ jobs:
               curl -u admin:admin -O "$URL/webdav/$p"
             done
             echo "Rebuilding ubunu.img..."
-            cat ubunu_part_* > ubuntu.zip
-            rm -rf ubunu_part_*
+            cat ubuntu_part_* > ubuntu.zip
+            rm -rf ubuntu_part_*
             unzip ubuntu.zip
             rm -rf ubuntu.zip
           fi
@@ -64,7 +64,7 @@ jobs:
         run: |
           cd
           if [ ! -f "ubuntu.img" ]; then
-             wget https://raw.githubusercontent.com/mineproness/free-vps-for-mineproness/refs/heads/main/Vm.sh -O vm.sh
+             wget https://raw.githubusercontent.com/mineproness/Free-vps-kvm/refs/heads/main/vm.sh -O vm.sh
              bash vm.sh
           fi
 
