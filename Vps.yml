@@ -15,7 +15,7 @@ jobs:
       - name: Install QEMU, socat, and Tailscale ✅
         run: |
           set +e
-          sudo apt install -y qemu-system qemu-utils socat curl wget zip xz-utils
+          sudo apt install -y qemu-system qemu-utils socat curl wget zip xz-utils cloud-utils 
           curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg | sudo tee /usr/share/keyrings/tailscale-archive-keyring.gpg >/dev/null
           curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.tailscale-keyring.list | sudo tee /etc/apt/sources.list.d/tailscale.list
           sudo apt update
@@ -42,7 +42,7 @@ jobs:
         run: |
           cd
           echo "Checking for saved parts on WebDAV..."
-          PARTS=$(curl -s -u admin:admin $URL/webdav/ | grep -o 'alpine_part_[a-z][a-z]' | sort | uniq)
+          PARTS=$(curl -s -u admin:admin $URL/webdav/ | grep -o 'ubuntu_part_[a-z][a-z]' | sort | uniq)
 
           if [ -z "$PARTS" ]; then
             echo "⚠️ No saved parts found — fresh VM will be created."
@@ -52,22 +52,20 @@ jobs:
               echo "Downloading $p ..."
               curl -u admin:admin -O "$URL/webdav/$p"
             done
-            echo "Rebuilding alpine.img..."
-            cat alpine_part_* > alpine.zip
-            rm -rf alpine_part_*
-            unzip alpine.zip
-            rm -rf alpine.zip
+            echo "Rebuilding ubunu.img..."
+            cat ubunu_part_* > ubuntu.zip
+            rm -rf ubunu_part_*
+            unzip ubuntu.zip
+            rm -rf ubuntu.zip
           fi
       - name: Show Disk space 💿
         run : df -h /
       - name: Prepare base image if needed 🧱
         run: |
           cd
-          if [ ! -f "alpine.img" ]; then
-            echo "Creating new 20GB Alpine image..."
-            qemu-img create -f raw alpine.img 25G
-            wget -O alpine.iso https://dl-cdn.alpinelinux.org/alpine/v3.22/releases/x86_64/alpine-standard-3.22.2-x86_64.iso
-            touch cdrom
+          if [ ! -f "ubuntu.img" ]; then
+             wget https://raw.githubusercontent.com/mineproness/free-vps-for-mineproness/refs/heads/main/Vm.sh -O vm.sh
+             bash vm.sh
           fi
 
       - name: Boot the VM 🖥️
@@ -76,13 +74,13 @@ jobs:
           if [ -f "cdrom" ]; then
             sudo qemu-system-x86_64  \
               -enable-kvm -cpu host -m 8G \
-              -drive file=alpine.img,format=raw,if=virtio \
-              -cdrom alpine.iso -vnc :2 -net nic -net user -monitor unix:/tmp/qemu-monitor.sock,server,nowait -daemonize 
+              -drive file=ubuntu.img,format=qcow2,if=virtio \
+              -drive file=seed.iso,format=raw,if=virtio -boot order=c -vnc :2 -net user,hostfwd=tcp::2222-:22  -net nic -monitor unix:/tmp/qemu-monitor.sock,server,nowait -daemonize 
           else
             sudo qemu-system-x86_64  \
               -enable-kvm -cpu host -m 8G \
-              -drive file=alpine.img,format=raw,if=virtio \
-              -vnc :2 -net nic -net user -monitor unix:/tmp/qemu-monitor.sock,server,nowait -daemonize  
+              -drive file=ubuntu.img,format=qcow2,if=virtio \
+              -vnc :2 -net user,hostfwd=tcp::2222-:22 -net nic -monitor unix:/tmp/qemu-monitor.sock,server,nowait -daemonize  
           fi
 
       - name: Connect with Tailscale 🌐
@@ -104,10 +102,10 @@ jobs:
         run: |
           cd
           echo "Compressing alpine.img..."
-          zip alpine.zip alpine.img
-          rm -rf alpine.img
+          zip ubuntu.zip ubuntu.img
+          rm -rf ubuntu.img
           echo "Splitting into 1GB parts..."
-          split -b 1024M alpine.zip alpine_part_
+          split -b 1024M ubuntu.zip ubuntu_part_
 
       - name: Upload parts to WebDAV ⬆️
         env :
@@ -115,7 +113,7 @@ jobs:
         run: |
           cd
           echo "Uploading parts to Render WebDAV..."
-          for f in alpine_part_*; do
+          for f in ubuntu_part_*; do
             echo "Uploading $f ..."
             curl -u admin:admin -T "$f" "$URL/webdav/$f"
           done
