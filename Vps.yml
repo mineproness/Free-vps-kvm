@@ -52,7 +52,7 @@ jobs:
               echo "Downloading $p ..."
               curl -u admin:admin -O "$URL/webdav/$p"
             done
-            echo "Rebuilding ubunu.img..."
+            echo "Rebuilding ubuntu.img..."
             cat ubuntu_part_* > ubuntu.zip
             rm -rf ubuntu_part_*
             unzip ubuntu.zip
