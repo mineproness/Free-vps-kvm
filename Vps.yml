@@ -94,14 +94,16 @@ jobs:
       - name: Gracefully shutdown VM ⚙️
         run: |
           set +e
-          sudo bash -c '
-          sudo socat - UNIX-CONNECT:/tmp/qemu-monitor.sock <<< "system_powerdown"
-          '
+          if [ -f "/tmp/qemu-monitor.sock" ] ; then
+            sudo bash -c '
+            sudo socat - UNIX-CONNECT:/tmp/qemu-monitor.sock <<< "system_powerdown"
+            '
+          fi
 
       - name: Compress and split image 📦
         run: |
           cd
-          echo "Compressing alpine.img..."
+          echo "Compressing ubuntu.img..."
           zip ubuntu.zip ubuntu.img
           rm -rf ubuntu.img
           echo "Splitting into 1GB parts..."
