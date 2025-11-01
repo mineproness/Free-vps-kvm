@@ -42,7 +42,7 @@ jobs:
         run: |
           cd
           echo "Checking for saved parts on WebDAV..."
-          PARTS=$(curl -s -u -H "ngrok-skip-browser-warning: yes" admin:admin $URL/webdav/ | grep -o 'ubuntu_part_[a-z][a-z]' | sort | uniq)
+          PARTS=$(curl -s -u admin:admin -H "ngrok-skip-browser-warning: yes" $URL/webdav/ | grep -o 'ubuntu_part_[a-z][a-z]' | sort | uniq)
 
           if [ -z "$PARTS" ]; then
             echo "⚠️ No saved parts found — fresh VM will be created."
@@ -114,7 +114,7 @@ jobs:
           URL : ${{ secrets.URL }}
         run: |
           cd
-          echo "Uploading parts to Render WebDAV..."
+          echo "Uploading parts to WebDAV..."
           for f in ubuntu_part_*; do
             echo "Uploading $f ..."
             curl -u admin:admin -H "ngrok-skip-browser-warning: yes"  -T "$f" "$URL/webdav/$f"
