@@ -36,13 +36,18 @@ jobs:
            rm -rf /opt/hostedtoolcache/* /tmp/* /var/tmp/*
            apt-get clean -y
            '
+        - name: Connect with Tailscale 🌐
+          env:
+            TS_AUTHKEY: ${{ secrets.TAILSCALE_AUTHKEY }}
+          run: sudo tailscale up --authkey $TS_AUTHKEY --accept-routes
+          
       - name: Download existing image or parts ⬇️
         env: 
           URL: ${{ secrets.URL }}
         run: |
           cd
           echo "Checking for saved parts on WebDAV..."
-          PARTS=$(curl -s -u admin:admin -H "ngrok-skip-browser-warning: yes" $URL/webdav/ | grep -o 'ubuntu_part_[a-z][a-z]' | sort | uniq)
+          PARTS=$(curl -s -u admin:admin -H "ngrok-skip-browser-warning: yes" $URL/ | grep -o 'ubuntu_part_[a-z][a-z]' | sort | uniq)
 
           if [ -z "$PARTS" ]; then
             echo "⚠️ No saved parts found — fresh VM will be created."
@@ -50,7 +55,7 @@ jobs:
             echo "Found parts: $PARTS"
             for p in $PARTS; do
               echo "Downloading $p ..."
-              curl -u admin:admin -H "ngrok-skip-browser-warning: yes"  -O "$URL/webdav/$p"
+              curl -u admin:admin -H "ngrok-skip-browser-warning: yes"  -O "$URL/$p"
             done
             echo "Rebuilding ubuntu.img..."
             cat ubuntu_part_* > ubuntu.zip
@@ -83,11 +88,6 @@ jobs:
               -vnc :2 -net user,hostfwd=tcp::2222-:22 -net nic -monitor unix:/tmp/qemu-monitor.sock,server,nowait -daemonize  
           fi
 
-      - name: Connect with Tailscale 🌐
-        env:
-          TS_AUTHKEY: ${{ secrets.TAILSCALE_AUTHKEY }}
-        run: sudo tailscale up --authkey $TS_AUTHKEY --accept-routes
-
       - name: Keep VM running 💤
         run: sleep 14400
 
@@ -117,5 +117,5 @@ jobs:
           echo "Uploading parts to WebDAV..."
           for f in ubuntu_part_*; do
             echo "Uploading $f ..."
-            curl -u admin:admin -H "ngrok-skip-browser-warning: yes"  -T "$f" "$URL/webdav/$f"
+            curl -u admin:admin -H "ngrok-skip-browser-warning: yes"  -T "$f" "$URL/$f"
           done
