@@ -45,7 +45,7 @@ jobs:
         env: 
           URL: ${{ secrets.URL }}
         run: |
-        download(){
+          download(){
           cd
           echo "Checking for saved parts on WebDAV..."
           URL_API=$(curl -s $URL)
@@ -64,11 +64,11 @@ jobs:
             unzip ubuntu.zip
             rm -rf ubuntu.zip
           fi
-         }
-         while (true) ; do
-          download && break
-          sleep 9
-         done
+          }
+          while (true) ; do
+           download && break
+           sleep 9
+          done
       - name: Show Disk space 💿
         run : df -h /
       - name: Prepare base image if needed 🧱
@@ -129,6 +129,6 @@ jobs:
             done
           }
           while(true){
-           install && break
+           upload && break
            sleep 9
           }
