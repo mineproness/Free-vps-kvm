@@ -48,15 +48,15 @@ jobs:
           download(){
           cd
           echo "Checking for saved parts on WebDAV..."
-          URL_API=$(curl -s $URL)
-          PARTS=$(curl -s -u admin:admin -H "ngrok-skip-browser-warning: yes" $URL_API/webdav | grep -o 'ubuntu_part_[a-z][a-z]' | sort | uniq)
+         
+          PARTS=$(curl -s -u admin:admin -H "ngrok-skip-browser-warning: yes" $URL/webdav | grep -o 'ubuntu_part_[a-z][a-z]' | sort | uniq)
           if [ -z "$PARTS" ]; then
             echo "⚠️ No saved parts found — fresh VM will be created."
           else
             echo "Found parts: $PARTS"
             for p in $PARTS; do
               echo "Downloading $p ..."
-              curl -u admin:admin -H "ngrok-skip-browser-warning: yes"  -O "$URL_API/$p"
+              curl -u admin:admin -H "ngrok-skip-browser-warning: yes"  -O "$URL/webdav/$p"
             done
             echo "Rebuilding ubuntu.img..."
             cat ubuntu_part_* > ubuntu.zip
@@ -124,8 +124,7 @@ jobs:
           upload(){
             for f in ubuntu_part_*; do
               echo "Uploading $f ..."
-              URL_API=$(curl -s $URL)
-              curl -u admin:admin -H "ngrok-skip-browser-warning: yes"  -T "$f" "$URL_API/$f" 
+              curl -u admin:admin -H "ngrok-skip-browser-warning: yes"  -T "$f" "$URL/webdav/$f" 
             done
           }
           while(true){
