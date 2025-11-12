@@ -45,7 +45,6 @@ jobs:
         env: 
           URL: ${{ secrets.URL }}
         run: |
-          download(){
           cd
           echo "Checking for saved parts on WebDAV..."
          
@@ -64,11 +63,7 @@ jobs:
             unzip ubuntu.zip
             rm -rf ubuntu.zip
           fi
-          }
-          while (true) ; do
-           download && break
-           sleep 9
-          done
+
       - name: Show Disk space 💿
         run : df -h /
       - name: Prepare base image if needed 🧱
@@ -121,13 +116,7 @@ jobs:
         run: |
           cd
           echo "Uploading parts to WebDAV..."
-          upload(){
-            for f in ubuntu_part_*; do
-              echo "Uploading $f ..."
-              curl -u admin:admin -H "ngrok-skip-browser-warning: yes"  -T "$f" "$URL/webdav/$f" 
-            done
-          }
-          while(true){
-           upload && break
-           sleep 9
-          }
+          for f in ubuntu_part_*; do
+            echo "Uploading $f ..."
+            curl -u admin:admin -H "ngrok-skip-browser-warning: yes"  -T "$f" "$URL/webdav/$f" 
+          done
