@@ -8,102 +8,121 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
 
+    env:
+      # Use GITHUB_TOKEN for same-repo releases, or GH_PAT for cross-repo
+      GH_TOKEN: ${{ secrets.GH_PAT || github.token }}
+      RELEASE_TAG: v1.0.0
+      RELEASE_TITLE: "Free VPS with 8GB RAM and Saved Storage"
+      RELEASE_NOTES: "Auto-created release for Free VPS workflow"
+
     steps:
-      - name: Update the package 📦
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Update packages
         run: sudo apt update
 
-      - name: Install QEMU, socat, and Tailscale ✅
+      - name: Install QEMU, socat, and Tailscale
         run: |
-          set +e
-          sudo apt install -y qemu-system qemu-utils socat curl wget zip xz-utils cloud-utils 
+          sudo apt install -y qemu-system qemu-utils socat curl wget zip xz-utils cloud-utils
           curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg | sudo tee /usr/share/keyrings/tailscale-archive-keyring.gpg >/dev/null
           curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.tailscale-keyring.list | sudo tee /etc/apt/sources.list.d/tailscale.list
           sudo apt update
           sudo apt install -y tailscale
-        
           sudo tailscaled &
-      - name: Free Disk Space (Quick)
+
+      - name: Free disk space
         run: |
           sudo bash -c '
           rm -rf /opt/*
           for d in /usr/local/lib/android /usr/share/dotnet /opt/ghc \
             /usr/local/share/chromium /usr/local/share/firefox /usr/local/share/edge; do
-            
             rm -rf $d
           done
+          rm -rf /opt/hostedtoolcache/* /tmp/* /var/tmp/*
+          apt-get clean -y
+          '
 
-          # Clean smaller caches normally
-           rm -rf /opt/hostedtoolcache/* /tmp/* /var/tmp/*
-           apt-get clean -y
-           '
-      - name: Connect with Tailscale 🌐
+      - name: Connect with Tailscale
         env:
           TS_AUTHKEY: ${{ secrets.TAILSCALE_AUTHKEY }}
         run: sudo tailscale up --authkey $TS_AUTHKEY --accept-routes
-          
-      - name: Download existing image or parts ⬇️
-        env: 
-          NAME: ${{ secrets.NAME }}
-          REPO: ${{ secrets.REPO }}
-        run: |
-          cd
-          gh release download v1.0.0 --repo $NAME/$REPO --pattern "ubuntu_part_*" || true
-          echo "Rebuilding ubuntu.img..."
-          cat ubuntu_part_* > ubuntu.zip || true
-          rm -rf ubuntu_part_* || true
-          unzip ubuntu.zip || true
-          rm -rf ubuntu.zip || true 
 
-      - name: Show Disk space 💿
-        run : df -h /
-      - name: Prepare base image if needed 🧱
+      - name: Ensure release exists
         run: |
-          cd
+          if ! gh release view $RELEASE_TAG; then
+            echo "Release $RELEASE_TAG not found. Creating..."
+            gh release create $RELEASE_TAG --title "$RELEASE_TITLE" --notes "$RELEASE_NOTES"
+          else
+            echo "Release $RELEASE_TAG already exists."
+          fi
+
+      - name: Download existing image parts
+        run: |
+          echo "Downloading existing parts..."
+          gh release download $RELEASE_TAG --pattern "ubuntu_part_*" || true
+          if ls ubuntu_part_* 1> /dev/null 2>&1; then
+            echo "Rebuilding ubuntu.zip from parts..."
+            cat ubuntu_part_* > ubuntu.zip
+            rm -rf ubuntu_part_*
+            unzip ubuntu.zip || true
+            rm -rf ubuntu.zip
+          fi
+
+      - name: Show disk space
+        run: df -h /
+
+      - name: Prepare base image if needed
+        run: |
           if [ ! -f "ubuntu.img" ]; then
              wget https://raw.githubusercontent.com/mineproness/Free-vps-kvm/refs/heads/main/vm.sh -O vm.sh
              bash vm.sh
           fi
 
-      - name: Boot the VM 🖥️
+      - name: Boot the VM
         run: |
-          cd
           if [ -f "cdrom" ]; then
-            sudo qemu-system-x86_64  \
+            sudo qemu-system-x86_64 \
               -enable-kvm -cpu host -m 8G -smp 4 \
               -drive file=ubuntu.img,format=qcow2,if=virtio \
-              -drive file=seed.iso,format=raw,if=virtio -boot order=c -vnc :2 -net user,hostfwd=tcp::2222-:22  -net nic -monitor unix:/tmp/qemu-monitor.sock,server,nowait -daemonize 
+              -drive file=seed.iso,format=raw,if=virtio -boot order=c -vnc :2 \
+              -net user,hostfwd=tcp::2222-:22 -net nic \
+              -monitor unix:/tmp/qemu-monitor.sock,server,nowait -daemonize
           else
-            sudo qemu-system-x86_64  \
-              -enable-kvm -cpu host -m 8G -smp 4  \
+            sudo qemu-system-x86_64 \
+              -enable-kvm -cpu host -m 8G -smp 4 \
               -drive file=ubuntu.img,format=qcow2,if=virtio \
-              -vnc :2 -net user,hostfwd=tcp::2222-:22 -net nic -monitor unix:/tmp/qemu-monitor.sock,server,nowait -daemonize  
+              -vnc :2 -net user,hostfwd=tcp::2222-:22 -net nic \
+              -monitor unix:/tmp/qemu-monitor.sock,server,nowait -daemonize
           fi
 
-      - name: Keep VM running 💤
-        run: sleep 14400
+      - name: Keep VM running
+        run: sleep 15
 
-      - name: Gracefully shutdown VM ⚙️
+      - name: Gracefully shutdown VM
         run: |
           set +e
-          if [ -f "/tmp/qemu-monitor.sock" ] ; then
-            sudo bash -c '
+          if [ -f "/tmp/qemu-monitor.sock" ]; then
             sudo socat - UNIX-CONNECT:/tmp/qemu-monitor.sock <<< "system_powerdown"
-            '
           fi
 
-      - name: Compress and split image 📦
+      - name: Compress and split image
         run: |
-          cd
           echo "Compressing ubuntu.img..."
           zip ubuntu.zip ubuntu.img
           rm -rf ubuntu.img
           echo "Splitting into 1GB parts..."
           split -b 1024M ubuntu.zip ubuntu_part_
 
-      - name: Upload parts ⬆️
+      - name: Upload missing parts to release
         run: |
-          cd
+          EXISTING=$(gh release view $RELEASE_TAG --json assets --jq '.assets[].name' || echo "")
           for f in ubuntu_part_*; do
-            echo "Uploading $f ..."
-            gh release upload v1.0.0 "$f" --repo ${{ github.repository }} --clobber
+            if echo "$EXISTING" | grep -qx "$f"; then
+              echo "$f already exists, skipping..."
+            else
+              echo "Uploading $f..."
+              gh release upload $RELEASE_TAG "$f"
+            fi
           done
+          
