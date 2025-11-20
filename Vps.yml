@@ -97,7 +97,7 @@ jobs:
           fi
 
       - name: Keep VM running
-        run: sleep 15
+        run: sleep 14400
 
       - name: Gracefully shutdown VM
         run: |
