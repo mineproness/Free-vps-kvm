@@ -43,26 +43,16 @@ jobs:
           
       - name: Download existing image or parts ⬇️
         env: 
-          URL: ${{ secrets.URL }}
+          NAME: ${{ secrets.NAME }}
+          REPO: ${{ secrets.REPO }}
         run: |
           cd
-          echo "Checking for saved parts on WebDAV..."
-         
-          PARTS=$(curl -s -u admin:admin -H "ngrok-skip-browser-warning: yes" $URL/webdav | grep -o 'ubuntu_part_[a-z][a-z]' | sort | uniq)
-          if [ -z "$PARTS" ]; then
-            echo "⚠️ No saved parts found — fresh VM will be created."
-          else
-            echo "Found parts: $PARTS"
-            for p in $PARTS; do
-              echo "Downloading $p ..."
-              curl -u admin:admin -H "ngrok-skip-browser-warning: yes"  -O "$URL/webdav/$p"
-            done
-            echo "Rebuilding ubuntu.img..."
-            cat ubuntu_part_* > ubuntu.zip
-            rm -rf ubuntu_part_*
-            unzip ubuntu.zip
-            rm -rf ubuntu.zip
-          fi
+          gh release download v1.0.0 --repo $NAME/$REPO --pattern "ubuntu_part_*" || true
+          echo "Rebuilding ubuntu.img..."
+          cat ubuntu_part_* > ubuntu.zip || true
+          rm -rf ubuntu_part_* || true
+          unzip ubuntu.zip || true
+          rm -rf ubuntu.zip || true 
 
       - name: Show Disk space 💿
         run : df -h /
@@ -110,13 +100,10 @@ jobs:
           echo "Splitting into 1GB parts..."
           split -b 1024M ubuntu.zip ubuntu_part_
 
-      - name: Upload parts to WebDAV ⬆️
-        env :
-          URL : ${{ secrets.URL }}
+      - name: Upload parts ⬆️
         run: |
           cd
-          echo "Uploading parts to WebDAV..."
           for f in ubuntu_part_*; do
             echo "Uploading $f ..."
-            curl -u admin:admin -H "ngrok-skip-browser-warning: yes"  -T "$f" "$URL/webdav/$f" 
+            gh release upload v1.0.0 "$f" --repo ${{ github.repository }} --clobber
           done
