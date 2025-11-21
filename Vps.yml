@@ -116,13 +116,8 @@ jobs:
 
       - name: Upload missing parts to release
         run: |
-          EXISTING=$(gh release view $RELEASE_TAG --json assets --jq '.assets[].name' || echo "")
           for f in ubuntu_part_*; do
-            if echo "$EXISTING" | grep -qx "$f"; then
-              echo "$f already exists, skipping..."
-            else
               echo "Uploading $f..."
-              gh release upload $RELEASE_TAG "$f"
-            fi
+              gh release upload $RELEASE_TAG "$f" --clobber
           done
           
