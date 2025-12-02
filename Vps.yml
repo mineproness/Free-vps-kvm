@@ -1,4 +1,4 @@
-name: Free VPS with 8GB RAM and Saved Storage
+name: Free VPS
 
 on:
   workflow_dispatch:
@@ -9,7 +9,6 @@ jobs:
     timeout-minutes: 360
 
     env:
-      # Use GITHUB_TOKEN for same-repo releases, or GH_PAT for cross-repo
       GH_TOKEN: ${{ secrets.GH_PAT || github.token }}
       RELEASE_TAG: v1.0.0
       RELEASE_TITLE: "Free VPS with 8GB RAM and Saved Storage"
@@ -102,10 +101,8 @@ jobs:
       - name: Gracefully shutdown VM
         run: |
           set +e
-          if [ -f "/tmp/qemu-monitor.sock" ]; then
-            sudo socat - UNIX-CONNECT:/tmp/qemu-monitor.sock <<< "system_powerdown"
-          fi
-
+          sudo socat - UNIX-CONNECT:/tmp/qemu-monitor.sock <<< "system_powerdown"
+          sleep 10
       - name: Compress and split image
         run: |
           echo "Compressing ubuntu.img..."
@@ -120,4 +117,5 @@ jobs:
               echo "Uploading $f..."
               gh release upload $RELEASE_TAG "$f" --clobber
           done
-          
+      - name: Start The workflow
+        run: gh workflow run vps.yml -r main
