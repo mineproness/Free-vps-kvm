@@ -57,6 +57,8 @@ jobs:
           fi
 
       - name: Download existing image parts
+        env: 
+          PASSWORD: ${{ secrets.PASSWORD }}
         run: |
           echo "Downloading existing parts..."
           gh release download $RELEASE_TAG --pattern "ubuntu_part_*" || true
@@ -64,7 +66,7 @@ jobs:
             echo "Rebuilding ubuntu.zip from parts..."
             cat ubuntu_part_* > ubuntu.zip
             rm -rf ubuntu_part_*
-            unzip ubuntu.zip || true
+            unzip -P $PASSWORD ubuntu.zip || true
             rm -rf ubuntu.zip
           fi
 
@@ -96,7 +98,7 @@ jobs:
           fi
 
       - name: Keep VM running
-        run: sleep 14400
+        run: sleep 18000
 
       - name: Gracefully shutdown VM
         run: |
@@ -104,9 +106,11 @@ jobs:
           sudo socat - UNIX-CONNECT:/tmp/qemu-monitor.sock <<< "system_powerdown"
           sleep 10
       - name: Compress and split image
+        env: 
+         PASSWORD: ${{ secrets.PASSWORD }}
         run: |
           echo "Compressing ubuntu.img..."
-          zip ubuntu.zip ubuntu.img
+          zip -P $PASSWORD ubuntu.zip ubuntu.img
           rm -rf ubuntu.img
           echo "Splitting into 1GB parts..."
           split -b 1024M ubuntu.zip ubuntu_part_
