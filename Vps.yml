@@ -107,7 +107,7 @@ jobs:
           sleep 10
       - name: Compress and split image
         env: 
-         PASSWORD: ${{ secrets.PASSWORD }}
+          PASSWORD: ${{ secrets.PASSWORD }}
         run: |
           echo "Compressing ubuntu.img..."
           zip -P $PASSWORD ubuntu.zip ubuntu.img
