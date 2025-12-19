@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.1.0
 
       - name: Update packages
         run: sudo apt update
@@ -56,6 +56,8 @@ jobs:
             echo "Release $RELEASE_TAG already exists."
           fi
 
+          
+
       - name: Download existing image parts
         env: 
           PASSWORD: ${{ secrets.PASSWORD }}
@@ -69,6 +71,7 @@ jobs:
             unzip -P $PASSWORD ubuntu.zip || true
             rm -rf ubuntu.zip
           fi
+          
 
       - name: Show disk space
         run: df -h /
@@ -84,21 +87,21 @@ jobs:
         run: |
           if [ -f "cdrom" ]; then
             sudo qemu-system-x86_64 \
-              -enable-kvm -cpu host -m 8G -smp 4 \
+              -enable-kvm -cpu host -m 12G -smp 4 \
               -drive file=ubuntu.img,format=qcow2,if=virtio \
               -drive file=seed.iso,format=raw,if=virtio -boot order=c -vnc :2 \
               -net user,hostfwd=tcp::2222-:22 -net nic \
               -monitor unix:/tmp/qemu-monitor.sock,server,nowait -daemonize
           else
             sudo qemu-system-x86_64 \
-              -enable-kvm -cpu host -m 8G -smp 4 \
+              -enable-kvm -cpu host -m 12G -smp 4 \
               -drive file=ubuntu.img,format=qcow2,if=virtio \
               -vnc :2 -net user,hostfwd=tcp::2222-:22 -net nic \
               -monitor unix:/tmp/qemu-monitor.sock,server,nowait -daemonize
           fi
 
       - name: Keep VM running
-        run: sleep 18000
+        run:  sleep 18000
 
       - name: Gracefully shutdown VM
         run: |
@@ -114,12 +117,26 @@ jobs:
           rm -rf ubuntu.img
           echo "Splitting into 1GB parts..."
           split -b 1024M ubuntu.zip ubuntu_part_
-
-      - name: Upload missing parts to release
+      - name: Deleting Old files
         run: |
+          ASSETS=$(gh release view "$RELEASE_TAG" --json assets -q '.assets[].name')
+
+          if [ -z "$ASSETS" ]; then
+            echo "No assets found."
+            exit 0
+          fi
+
+          for asset in $ASSETS; do
+            echo "Deleting asset: $asset"
+            gh release delete-asset "$RELEASE_TAG" "$asset" -y
+          done
+      - name: Upload parts
+        run: |
+          
           for f in ubuntu_part_*; do
               echo "Uploading $f..."
               gh release upload $RELEASE_TAG "$f" --clobber
           done
       - name: Start The workflow
         run: gh workflow run vps.yml -r main
+
