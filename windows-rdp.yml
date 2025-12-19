@@ -1,4 +1,4 @@
-name: Free VPS with 8GB RAM and Saved Storage
+name: Free RDP with 8GB RAM and Saved Storage
 
 on:
   workflow_dispatch:
@@ -11,9 +11,9 @@ jobs:
     env:
       # Use GITHUB_TOKEN for same-repo releases, or GH_PAT for cross-repo
       GH_TOKEN: ${{ secrets.GH_PAT || github.token }}
-      RELEASE_TAG: v1.0.0
-      RELEASE_TITLE: "Free VPS with 8GB RAM and Saved Storage"
-      RELEASE_NOTES: "Auto-created release for Free VPS workflow"
+      RELEASE_TAG: v2.0.0
+      RELEASE_TITLE: "Free RDP with 8GB RAM and Saved Storage"
+      RELEASE_NOTES:  "nd Saved Storage"s      
 
     steps:
       - name: Checkout repo
@@ -76,7 +76,12 @@ jobs:
         run: |
           if [ ! -f "windows.img" ]; then
              qemu-img create -f raw windows.img 25G
-             wget "https://archive.org/download/tiny-11-NTDEV/tiny11%2023H2%20x64.iso" -O windows.iso 
+             wget "https://pixeldrain.com/api/file/w2Ky3bzH" -O windows.7z
+             mkdir windows
+             7z x windows.7z -owindoows
+             cp windows/*/*.iso ./windows.iso
+             rm -rf windows.7z windows
+             touch cdrom
           fi
 
       - name: Boot the VM
