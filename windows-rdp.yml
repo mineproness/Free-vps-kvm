@@ -58,6 +58,8 @@ jobs:
           fi
 
       - name: Download existing image parts
+        env: 
+          PASSWORD: ${{ secrets.PASSWORD }}
         run: |
           echo "Downloading existing parts..."
           gh release download $RELEASE_TAG --pattern "windows_part_*" || true
@@ -65,7 +67,7 @@ jobs:
             echo "Rebuilding windows.zip from parts..."
             cat windows_part_* > windows.zip
             rm -rf windows_part_*
-            unzip windows.zip || true
+            unzip -p $PASSWORD windows.zip || true
             rm -rf windows.zip
           fi
 
@@ -112,9 +114,11 @@ jobs:
           fi
 
       - name: Compress and split image
+        env: 
+          PASSWORD: ${{ secrets.PASSWORD }}
         run: |
           echo "Compressing windows.img..."
-          zip windows.zip windows.img
+          zip -p $PASSWORD windows.zip windows.img
           rm -rf windows.img
           echo "Splitting into 1GB parts..."
           split -b 1024M windows.zip windows_part_
