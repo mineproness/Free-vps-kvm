@@ -87,21 +87,26 @@ jobs:
         run: |
           if [ -f "cdrom" ]; then
             sudo qemu-system-x86_64 \
-              -enable-kvm -cpu host -m 12G -smp 4 \
+              -enable-kvm -cpu host -m 13G -smp 4 \
               -drive file=ubuntu.img,format=qcow2,if=virtio \
               -drive file=seed.iso,format=raw,if=virtio -boot order=c -vnc :2 \
               -net user,hostfwd=tcp::2222-:22 -net nic \
+              -device ich9-intel-hda -device hda-duplex \
               -monitor unix:/tmp/qemu-monitor.sock,server,nowait -daemonize
           else
             sudo qemu-system-x86_64 \
-              -enable-kvm -cpu host -m 12G -smp 4 \
+              -enable-kvm -cpu host -m 13G -smp 4 \
               -drive file=ubuntu.img,format=qcow2,if=virtio \
               -vnc :2 -net user,hostfwd=tcp::2222-:22 -net nic \
+              -device ich9-intel-hda -device hda-duplex \
               -monitor unix:/tmp/qemu-monitor.sock,server,nowait -daemonize
           fi
 
       - name: Keep VM running
-        run:  sleep 18000
+        run: |
+          echo "Your ssh command is : ssh -p 2222 root@$(tailscale ip -4)"
+          sleep 18000
+          
 
       - name: Gracefully shutdown VM
         run: |
@@ -117,9 +122,17 @@ jobs:
           rm -rf ubuntu.img
           echo "Splitting into 1GB parts..."
           split -b 1024M ubuntu.zip ubuntu_part_
-      - name: Deleting Old files
+   
+          
+          
+      - name: Upload part
         run: |
-          ASSETS=$(gh release view "$RELEASE_TAG" --json assets -q '.assets[].name')
+          ASSETS=$(gh release view "$RELEASE_TAG" --json assets -q '.assets[].name') 
+          
+          for f in ubuntu_part_*; do
+              echo "Uploading $f..."
+              gh release upload $RELEASE_TAG "$f" --clobber
+          done
 
           if [ -z "$ASSETS" ]; then
             echo "No assets found."
@@ -127,16 +140,12 @@ jobs:
           fi
 
           for asset in $ASSETS; do
-            echo "Deleting asset: $asset"
-            gh release delete-asset "$RELEASE_TAG" "$asset" -y
-          done
-      - name: Upload parts
-        run: |
-          
-          for f in ubuntu_part_*; do
-              echo "Uploading $f..."
-              gh release upload $RELEASE_TAG "$f" --clobber
+             if [ -f "$asset" ] ; then
+               echo "Skiping Delete $asset"
+             else 
+               echo "Deleting asset: $asset"
+               gh release delete-asset "$RELEASE_TAG" "$asset" -y
+            fi
           done
       - name: Start The workflow
         run: gh workflow run vps.yml -r main
-
