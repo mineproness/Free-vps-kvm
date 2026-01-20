@@ -21,15 +21,14 @@ jobs:
       - name: Update packages
         run: sudo apt update
 
-      - name: Install QEMU, socat, and Tailscale
+      - name: Install QEMU, socat
         run: |
+          cd 
           sudo apt install -y qemu-system qemu-utils socat curl wget zip xz-utils cloud-utils
-          curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg | sudo tee /usr/share/keyrings/tailscale-archive-keyring.gpg >/dev/null
-          curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.tailscale-keyring.list | sudo tee /etc/apt/sources.list.d/tailscale.list
-          sudo apt update
-          sudo apt install -y tailscale
-          sudo tailscaled &
-
+          git clone https://github.com/novnc/noVNC
+          ./noVNC/utils/novnc_proxy --vnc localhost:5901 --listen localhost:8080
+          wget https://github.com/cloudflare/cloudflared/releases/download/2025.10.1/cloudflared-linux-amd64 -O cloudflared
+          chmod +x cloudflared
       - name: Free disk space
         run: |
           sudo bash -c '
@@ -41,11 +40,6 @@ jobs:
           rm -rf /opt/hostedtoolcache/* /tmp/* /var/tmp/*
           apt-get clean -y
           '
-
-      - name: Connect with Tailscale
-        env:
-          TS_AUTHKEY: ${{ secrets.TAILSCALE_AUTHKEY }}
-        run: sudo tailscale up --authkey $TS_AUTHKEY --accept-routes
 
       - name: Ensure release exists
         run: |
@@ -101,10 +95,12 @@ jobs:
               -device ich9-intel-hda -device hda-duplex \
               -monitor unix:/tmp/qemu-monitor.sock,server,nowait -daemonize
           fi
-
+      - name: Run Tunnel
+        run: |
+           cloudflared tunnel --url http://localhost:8080 &
+           sleep 30
       - name: Keep VM running
         run: |
-          echo "Your ssh command is : ssh -p 2222 root@$(tailscale ip -4)"
           sleep 18000
           
 
