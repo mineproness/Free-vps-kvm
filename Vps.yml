@@ -26,9 +26,8 @@ jobs:
           cd 
           sudo apt install -y qemu-system qemu-utils socat curl wget zip xz-utils cloud-utils
           git clone https://github.com/novnc/noVNC
-          ./noVNC/utils/novnc_proxy --vnc localhost:5901 --listen localhost:8080
-          wget https://github.com/cloudflare/cloudflared/releases/download/2025.10.1/cloudflared-linux-amd64 -O cloudflared
-          chmod +x cloudflared
+          ./noVNC/utils/novnc_proxy --vnc localhost:5902 --listen localhost:8080 &
+          
       - name: Free disk space
         run: |
           sudo bash -c '
@@ -40,7 +39,6 @@ jobs:
           rm -rf /opt/hostedtoolcache/* /tmp/* /var/tmp/*
           apt-get clean -y
           '
-
       - name: Ensure release exists
         run: |
           if ! gh release view $RELEASE_TAG; then
@@ -49,9 +47,7 @@ jobs:
           else
             echo "Release $RELEASE_TAG already exists."
           fi
-
           
-
       - name: Download existing image parts
         env: 
           PASSWORD: ${{ secrets.PASSWORD }}
@@ -66,7 +62,6 @@ jobs:
             rm -rf ubuntu.zip
           fi
           
-
       - name: Show disk space
         run: df -h /
 
@@ -76,7 +71,6 @@ jobs:
              wget https://raw.githubusercontent.com/mineproness/Free-vps-kvm/refs/heads/main/vm.sh -O vm.sh
              bash vm.sh
           fi
-
       - name: Boot the VM
         run: |
           if [ -f "cdrom" ]; then
@@ -97,13 +91,14 @@ jobs:
           fi
       - name: Run Tunnel
         run: |
-           cloudflared tunnel --url http://localhost:8080 &
-           sleep 30
+          wget https://github.com/cloudflare/cloudflared/releases/download/2025.10.1/cloudflared-linux-amd64 -O cloudflared
+          chmod +x cloudflared
+          ./cloudflared tunnel --url http://localhost:8080 &
+          sleep 30
       - name: Keep VM running
         run: |
           sleep 18000
           
-
       - name: Gracefully shutdown VM
         run: |
           set +e
@@ -129,12 +124,10 @@ jobs:
               echo "Uploading $f..."
               gh release upload $RELEASE_TAG "$f" --clobber
           done
-
           if [ -z "$ASSETS" ]; then
             echo "No assets found."
             exit 0
           fi
-
           for asset in $ASSETS; do
              if [ -f "$asset" ] ; then
                echo "Skiping Delete $asset"
