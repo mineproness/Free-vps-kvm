@@ -136,5 +136,4 @@ jobs:
                gh release delete-asset "$RELEASE_TAG" "$asset" -y
             fi
           done
-      - name: Start The workflow
-        run: gh workflow run vps.yml -r main
+    
