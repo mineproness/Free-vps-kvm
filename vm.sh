@@ -27,5 +27,5 @@ EOF
 
 cloud-localds seed.iso user-data meta-data 
 wget https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img -O ubuntu.img
-qemu-img resize  ubuntu.img 25G
+qemu-img resize  ubuntu.img 50G
 touch cdrom
